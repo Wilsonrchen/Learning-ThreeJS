@@ -2,6 +2,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as dat from "lil-gui";
 
+// Textures
+
+const textureLoader = new THREE.TextureLoader();
+const bakedShadow = textureLoader.load("/textures/bakedShadow.jpg");
+const simpleShadow = textureLoader.load("/textures/simpleShadow.jpg");
+
 /**
  * Base
  */
@@ -52,18 +58,44 @@ scene.add(directionalLightCameraHelper);
 
 //SpotLight
 const spotLight = new THREE.SpotLight(0xffffff, 0.4, 10, Math.PI * 0.3);
+
 spotLight.castShadow = true;
 spotLight.shadow.mapSize.width = 1024;
 spotLight.shadow.mapSize.height = 1024;
 spotLight.shadow.camera.fov = 30;
+spotLight.shadow.camera.near = 1;
+spotLight.shadow.camera.far = 6;
 
-spotLight.getWorldPosition.set(0, 2, 2);
+spotLight.position.set(0, 2, 2);
+// spotLight.getWorldPosition.set(0, 2, 2);
 
 scene.add(spotLight);
 scene.add(spotLight.target);
 
 const spotLightCameraHelper = new THREE.CameraHelper(spotLight.shadow.camera);
+spotLightCameraHelper.visible = false;
 scene.add(spotLightCameraHelper);
+
+// Point Light
+
+const pointLight = new THREE.PointLight(0xffffff, 0.3);
+
+pointLight.castShadow = true;
+pointLight.shadow.mapSize.width = 1024;
+pointLight.shadow.mapSize.height = 1024;
+pointLight.shadow.camera.near = 0.1;
+pointLight.shadow.camera.far = 5;
+
+pointLight.position.set(-1, 1, 0);
+scene.add(pointLight);
+
+const pointLightCameraHelper = new THREE.CameraHelper(pointLight.shadow.camera);
+scene.add(pointLightCameraHelper);
+
+// Deactivate Shadows
+directionalLight.castShadow = false;
+spotLight.castShadow = false;
+pointLight.castShadow = false;
 
 /**
  * Materials
@@ -80,12 +112,29 @@ const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), material);
 sphere.castShadow = true;
 
 const plane = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), material);
+// const plane = new THREE.Mesh(
+//   new THREE.PlaneGeometry(5, 5),
+//   new THREE.MeshBasicMaterial({ map: bakedShadow })
+// );
+
 plane.rotation.x = -Math.PI * 0.5;
 plane.position.y = -0.5;
 
 plane.receiveShadow = true;
 
 scene.add(sphere, plane);
+
+const sphereShadow = new THREE.Mesh(
+  new THREE.PlaneBufferGeometry(1.5, 1.5),
+  new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    alphaMap: simpleShadow,
+  })
+);
+sphereShadow.rotation.x = -Math.PI * 0.5;
+sphereShadow.position.y = plane.position.y + 0.01;
+scene.add(sphereShadow);
 
 /**
  * Sizes
@@ -146,6 +195,16 @@ const clock = new THREE.Clock();
 
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
+
+  // Update the sphere
+  sphere.position.x = Math.cos(elapsedTime) * 1.5;
+  sphere.position.z = Math.sin(elapsedTime) * 1.5;
+  sphere.position.y = Math.abs(Math.sin(elapsedTime) * 2);
+
+  // Update the shadow
+  sphereShadow.position.x = sphere.position.x;
+  sphereShadow.position.z = sphere.position.z;
+  sphereShadow.material.opacity = (1 - sphere.position.y) * 0.8;
 
   // Update controls
   controls.update();
